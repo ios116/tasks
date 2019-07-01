@@ -10,32 +10,60 @@ import (
 func TestHendler(t *testing.T) {
 	tasks := []function{
 		func() error {
-			time.Sleep(time.Second)
-			return errors.New("some error")
+			fmt.Println("start job 0")
+			time.Sleep(5*time.Second)
+			fmt.Println("stop job 0")
+			//return errors.New("start error")
+			
+			return nil
 		
 		},
+
 		func() error {
-			time.Sleep(2 * time.Second)
-			fmt.Println("some job 2")
+			fmt.Println("start job 1")
+			time.Sleep(5 * time.Second)
+			fmt.Println("stop job 1")
 			return nil
 		},
+
+
 		func() error {
-			time.Sleep(3 * time.Second)
-			fmt.Println("some job 3")
+			fmt.Println("start job 2")
+			time.Sleep(5 * time.Second)
+			fmt.Println("stop job 2")
+			return errors.New("start error")
+		},
+		func() error {
+			fmt.Println("start job 3")
+			time.Sleep(5 * time.Second)
+			fmt.Println("stop job 3")
+			
 			return nil
 		},
 
 		func() error {
+			fmt.Println("start job 4")
 			time.Sleep(5 * time.Second)
-			fmt.Println("some job 4")
+			fmt.Println("stop job 4")
+			
 			return nil
 		},
 		func() error {
-			time.Sleep(2 * time.Second)
-			fmt.Println("some job 5")
+			fmt.Println("start job 5")
+			time.Sleep(5 * time.Second)
+			fmt.Println("stop job 5")
+			
+			return nil
+		
+		},
+		func() error {
+			fmt.Println("start job 6")
+			time.Sleep(5 * time.Second)
+			fmt.Println("stop job 6")
+			
 			return nil
 		
 		},
 	}
-	Hendler(tasks, 1)
+	Hendler(tasks, 3,3)
 }

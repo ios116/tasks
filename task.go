@@ -21,19 +21,19 @@ func (ec *ErrorCounter) Add() int {
 	return ec.count
 }
 
-func cancelled() bool {
-	select {
-	case <-stop:
-		return true
-	default:
-		return false
-	}
-}
+// func cancelled() bool {
+// 	select {
+// 	case <-stop:
+// 		return true
+// 	default:
+// 		return false
+// 	}
+// }
 
-func maker(task function, n int) {
+func maker(task function, countErrors int) {
     if err := task(); err != nil {
 		count := counter.Add()
-		if count >= n {
+		if count >= countErrors {
 			close(stop)
 			log.Println("Errors too match")
 		}
@@ -45,13 +45,24 @@ var counter = &ErrorCounter{}
 var wg sync.WaitGroup
 
 // Hendler - functions hendler
-func Hendler(tasks []function, n int) {
+func Hendler(tasks []function, countWokers int, countErrors int) {
+	wokers := make(chan struct{},countWokers)
+	done := make(chan struct{},countWokers)
 	for _, task := range tasks {
-		wg.Add(1)
+		wokers <- struct{}{}
 		go func(task function) {
-			maker(task,n)
-			wg.Done()
+			task()
+			<-wokers
+			done <- struct{}{}
+			//maker(task,countErrors)
 		}(task)
 	}
-	wg.Wait()
+
+	log.Println("!!!!!!!!!!!!!!!!!!!!!!!!")
+
+	close(wokers)	
+	
+	for res := range done {
+		log.Println(res)
+	}
 }
