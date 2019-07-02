@@ -5,64 +5,93 @@ import (
 	"sync"
 )
 
+// function - it's task signature
 type function func() error
 
-// ErrorCounter - error counter returning from functions
-type ErrorCounter struct {
+// Counter - error, job counter
+type Counter struct {
 	sync.Mutex
-	count int
+	errorCount int
+	jobCount   int
 }
 
-// Add - safely adds one
-func (ec *ErrorCounter) Add() int {
+// addError - safely adds one to errors counter
+func (ec *Counter) addError() {
 	ec.Lock()
-	ec.count++
+	ec.errorCount++
 	ec.Unlock()
-	return ec.count
 }
 
-// func cancelled() bool {
-// 	select {
-// 	case <-stop:
-// 		return true
-// 	default:
-// 		return false
-// 	}
-// }
+// getError - errors counter is safe for concurrent use
+func (ec *Counter) getError() int {
+	ec.Lock()
+	defer ec.Unlock()
+	return ec.errorCount
+}
 
-func maker(task function, countErrors int) {
-    if err := task(); err != nil {
-		count := counter.Add()
-		if count >= countErrors {
-			close(stop)
+// addJob - safely adds one to job counter
+func (ec *Counter) addJob() {
+	ec.Lock()
+	ec.jobCount++
+	ec.Unlock()
+}
+
+// getJob - job counter is safe for concurrent use
+func (ec *Counter) getJob() int {
+	ec.Lock()
+	defer ec.Unlock()
+	return ec.jobCount
+
+}
+
+// cancelled - cancel if channel "done" is closed
+func cancelled(done chan struct{}) bool {
+	select {
+	case <-done:
+		return true
+	default:
+		return false
+	}
+}
+
+// maker - function executer of the task if erros more then countErrors then done channel is closed
+func maker(task function, countErrors int, done chan struct{}) {
+	if err := task(); err != nil {
+		counter.addError()
+		if counter.getError() >= countErrors {
+			close(done)
 			log.Println("Errors too match")
 		}
+	} else {
+		counter.addJob()
 	}
 }
 
-var stop = make(chan struct{})
-var counter = &ErrorCounter{}
-var wg sync.WaitGroup
+var counter = &Counter{}
 
-// Hendler - functions hendler
-func Hendler(tasks []function, countWokers int, countErrors int) {
-	wokers := make(chan struct{},countWokers)
-	done := make(chan struct{},countWokers)
+// Hendler -  Task handler returns error counter and completed task counter
+func Hendler(tasks []function, countWokers int, countErrors int) (int, int) {
+	wokers := make(chan struct{}, countWokers)
+	done := make(chan struct{}, countWokers)
+	var wg sync.WaitGroup
 	for _, task := range tasks {
 		wokers <- struct{}{}
+		wg.Add(1)
+		if cancelled(done) {
+			return counter.getError(), counter.getJob()
+		}
 		go func(task function) {
-			task()
+			maker(task, countErrors, done)
 			<-wokers
-			done <- struct{}{}
-			//maker(task,countErrors)
+			wg.Done()
 		}(task)
 	}
-
-	log.Println("!!!!!!!!!!!!!!!!!!!!!!!!")
-
-	close(wokers)	
-	
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
 	for res := range done {
 		log.Println(res)
 	}
+	return counter.getError(), counter.getJob()
 }
